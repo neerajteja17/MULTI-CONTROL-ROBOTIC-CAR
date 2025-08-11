@@ -1,0 +1,333 @@
+#define ENA 3   // PWM pin for speed control
+#define ENB 6  // PWM pin for speed control
+#define Motot_P1 7
+#define Motot_N1 9
+#define Motot_P2 10
+#define Motot_N2 11
+#include <ultrasonic.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <SoftwareSerial.h>
+#include <Servo.h>
+SoftwareSerial ss(A2, A3);
+ULTRASONIC U1;
+Servo myServo;
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+char rx_data1;
+int F;
+int count = 0;
+int rightDistance, leftDistance = 0;
+void setup() {
+  Serial.begin(9600);
+  ss.begin(9600);
+  U1.begin(A0, A1);
+  pinMode(ENB, OUTPUT);
+  pinMode(ENB, OUTPUT);
+  pinMode(Motot_P1, OUTPUT);
+  pinMode(Motot_N1, OUTPUT);
+  pinMode(Motot_P2, OUTPUT);
+  pinMode(Motot_N2, OUTPUT);
+  myServo.attach(5);
+  myServo.write(90);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;);
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.print("Intelligent Robot");
+  display.display();
+  delay(2000);
+  display.clearDisplay();
+}
+void loop() {
+  F = U1.ultra();
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Dist: ");
+  display.print(F);
+  display.print(" cm");
+  display.display();
+  if (F > 4 && F < 35) {
+    digitalWrite(Motot_P1, LOW);
+    digitalWrite(Motot_N1, LOW);
+    digitalWrite(Motot_P2, LOW);
+    digitalWrite(Motot_N2, LOW);
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.print("STOPPED");
+    display.display();
+    delay(500);
+  }
+  if (Serial.available() > 0) {
+    rx_data1 = Serial.read();
+    switch (rx_data1) {
+      case 'F': F_MOOD(); break;
+      case 'B': B_MOOD(); break;
+      case 'R': R_MOOD(); break;
+      case 'L': L_MOOD(); break;
+      case 'S': S_MOOD(); break;
+    }
+    while (rx_data1 == 'A') {
+      Serial.println("A:");
+      Serial.print(F);
+      if (Serial.available() > 0) {
+        char rx = Serial.read();
+        if (rx == 'M') {
+          stopRobot();
+          break;
+          break;
+        }
+      }
+      while (F > 4 && F < 45) {
+        digitalWrite(Motot_P1, LOW);
+        digitalWrite(Motot_N1, LOW);
+        digitalWrite(Motot_P2, LOW);
+        digitalWrite(Motot_N2, LOW);
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.print("STOPPED");
+        display.display();
+        delay(500);
+        scanAndMove();
+        break;
+      }
+      analogWrite(ENA, 100);
+      analogWrite(ENB, 100);
+      digitalWrite(Motot_P1, 0);
+      digitalWrite(Motot_N1, 1);
+      digitalWrite(Motot_P2, 0);
+      digitalWrite(Motot_N2, 1);
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.print("Moving Forward");
+      display.display();
+      F = U1.ultra();
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.print("Dist: ");
+      display.print(F);
+      display.print(" cm");
+      display.setCursor(0, 20);
+      display.print("Auto Mood");
+      display.display();
+
+      delay(50);
+    }
+  }
+  if (ss.available() > 0) {
+    char rx_data12 = ss.read();
+    switch (rx_data12) {
+      case 'F': F_MOOD(); break;
+      case 'B': B_MOOD(); break;
+      case 'R': R_MOOD(); break;
+      case 'L': L_MOOD(); break;
+      case 'S': S_MOOD(); break;
+      case 'X': L1_MOOD(); break;
+      case 'Y': R1_MOOD(); break;
+    }
+
+    while (rx_data12 == 'A') {
+      while (F > 0 && F < 45) {
+        digitalWrite(Motot_P1, LOW);
+        digitalWrite(Motot_N1, LOW);
+        digitalWrite(Motot_P2, LOW);
+        digitalWrite(Motot_N2, LOW);
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.print("STOPPED");
+        display.display();
+        delay(500);
+        scanAndMove();
+        break;
+      }
+
+      Serial.println("A:");
+      Serial.print(F);
+      if (ss.available() > 0) {
+        char rx2 = ss.read();
+        if (rx2 == 'M') {
+          stopRobot();
+          break;
+          break;
+        }
+      }
+      analogWrite(ENA, 100);
+      analogWrite(ENB, 100);
+      digitalWrite(Motot_P1, 0);
+      digitalWrite(Motot_N1, 1);
+      digitalWrite(Motot_P2, 0);
+      digitalWrite(Motot_N2, 1);
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.print("Moving Forward");
+      display.display();
+      F = U1.ultra();
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.print("Dist: ");
+      display.print(F);
+      display.print(" cm");
+      display.setCursor(0, 20);
+      display.print("Auto Mood");
+      display.display();
+
+      delay(50);
+    }
+  }
+  delay(50);
+}
+
+void scanAndMove() {
+  analogWrite(ENA, 100);
+  analogWrite(ENB, 100);
+  delay(2500);
+  myServo.write(0);
+  delay(2500);
+  rightDistance = U1.ultra();
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("R: ");
+  display.print(rightDistance);
+  display.print(" cm");
+  display.display();
+  delay(2500);
+  myServo.write(180);
+  delay(2500);
+  leftDistance = U1.ultra();
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("L: ");
+  display.print(leftDistance);
+  display.print(" cm");
+  display.display();
+  myServo.write(90);
+  delay(2500);
+  if ((rightDistance < 20 && leftDistance < 20)) {
+    B_MOOD();
+    delay(1800);
+    S_MOOD();
+  }
+  else if (rightDistance > leftDistance) {
+    L_MOOD();
+    F_MOOD();
+  }
+  else {
+    R_MOOD();
+    F_MOOD();
+  }
+
+  myServo.write(90);
+  delay(500);
+}
+void stopRobot() {
+  analogWrite(ENA, 100);
+  analogWrite(ENB, 100);
+  digitalWrite(Motot_P1, LOW);
+  digitalWrite(Motot_N1, LOW);
+  digitalWrite(Motot_P2, LOW);
+  digitalWrite(Motot_N2, LOW);
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("STOPPED");
+  display.display();
+  delay(500);
+}
+void F_MOOD() {
+  analogWrite(ENA, 100);
+  analogWrite(ENB, 100);
+  stopRobot();
+  digitalWrite(Motot_P1, 0);
+  digitalWrite(Motot_N1, 1);
+  digitalWrite(Motot_P2, 0);
+  digitalWrite(Motot_N2, 1);
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Moving Forward");
+  display.display();
+  delay(1000);
+}
+void B_MOOD() {
+  analogWrite(ENA, 100);
+  analogWrite(ENB, 100);
+  stopRobot();
+  digitalWrite(Motot_P1, 1);
+  digitalWrite(Motot_N1, LOW);
+  digitalWrite(Motot_P2, 1);
+  digitalWrite(Motot_N2, LOW);
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Moving Backward");
+  display.display();
+  delay(1000);
+}
+
+void R_MOOD() {
+  analogWrite(ENA, 100);
+  analogWrite(ENB, 100);
+  stopRobot();
+  digitalWrite(Motot_P1, 1);
+  digitalWrite(Motot_N1, LOW);
+  digitalWrite(Motot_P2, LOW);
+  digitalWrite(Motot_N2, 1);
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Turning Right");
+  display.display();
+  delay(1000);
+  stopRobot();
+}
+
+void L_MOOD() {
+  analogWrite(ENA, 100);
+  analogWrite(ENB, 100);
+  stopRobot();
+  digitalWrite(Motot_P1, LOW);
+  digitalWrite(Motot_N1, 1);
+  digitalWrite(Motot_P2, 1);
+  digitalWrite(Motot_N2, LOW);
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Turning Left");
+  display.display();
+  delay(1000);
+  stopRobot();
+}
+
+void S_MOOD() {
+  stopRobot();
+}
+void R1_MOOD() {
+  analogWrite(ENA, 100);
+  analogWrite(ENB, 100);
+  stopRobot();
+  digitalWrite(Motot_P1, 1);
+  digitalWrite(Motot_N1, LOW);
+  digitalWrite(Motot_P2, LOW);
+  digitalWrite(Motot_N2, 0);
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Turning Right1");
+  display.display();
+  delay(2000);
+  stopRobot();
+}
+void L1_MOOD() {
+  analogWrite(ENA, 100);
+  analogWrite(ENB, 100);
+  stopRobot();
+  digitalWrite(Motot_P1, 0);
+  digitalWrite(Motot_N1, LOW);
+  digitalWrite(Motot_P2, 1);
+  digitalWrite(Motot_N2, 0);
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Turning Right1");
+  display.display();
+  delay(2000);
+  stopRobot();
+}
